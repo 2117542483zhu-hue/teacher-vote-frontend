@@ -1,24 +1,55 @@
 <template>
-  <div class="login-container">
-    <el-card class="login-card">
-      <template #header>
-        <h2 class="login-title">我最喜爱的教师评选系统</h2>
-      </template>
-      <el-form :model="loginForm" label-width="70px" @submit.prevent>
-        <el-form-item label="账号">
-          <el-input v-model="loginForm.username" placeholder="请输入学工号/账号" @keyup.enter="handleLogin" />
-        </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password @keyup.enter="handleLogin" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" class="login-btn" @click="handleLogin" :loading="loading">登 录</el-button>
-        </el-form-item>
-        <el-form-item>
-          <span class="register-link">没有账号？<router-link to="/register">立即注册</router-link></span>
-        </el-form-item>
+  <div class="login-page">
+    <div class="login-box fade-in">
+      <div class="login-brand">
+        <div class="login-icon">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <h1 class="login-brand__title">我最喜爱的教师</h1>
+        <p class="login-brand__sub">评选投票系统</p>
+      </div>
+
+      <el-form :model="loginForm" @submit.prevent class="login-form">
+        <div class="input-group">
+          <label class="input-label">账号</label>
+          <el-input
+            v-model="loginForm.username"
+            placeholder="请输入学工号"
+            size="large"
+            @keyup.enter="handleLogin"
+          />
+        </div>
+        <div class="input-group">
+          <label class="input-label">密码</label>
+          <el-input
+            v-model="loginForm.password"
+            type="password"
+            placeholder="请输入密码"
+            size="large"
+            show-password
+            @keyup.enter="handleLogin"
+          />
+        </div>
+        <el-button
+          type="primary"
+          size="large"
+          class="login-submit"
+          :loading="loading"
+          @click="handleLogin"
+          round
+        >
+          登 录
+        </el-button>
       </el-form>
-    </el-card>
+
+      <p class="login-foot">
+        还没有账号？<router-link to="/register">立即注册</router-link>
+      </p>
+    </div>
   </div>
 </template>
 
@@ -31,59 +62,63 @@ import api from '../api'
 const router = useRouter()
 const loading = ref(false)
 
-const loginForm = ref({
-  username: '',
-  password: ''
-})
+const loginForm = ref({ username: '', password: '' })
 
 const handleLogin = async () => {
   if (!loginForm.value.username || !loginForm.value.password) {
-    ElMessage.warning('请输入用户名和密码！')
+    ElMessage.warning('请输入用户名和密码')
     return
   }
   loading.value = true
   try {
     const res = await api.login(loginForm.value.username, loginForm.value.password)
-    ElMessage.success('登录成功！')
+    ElMessage.success('登录成功')
     localStorage.setItem('user', JSON.stringify(res.data))
-    if (res.data.role === 'admin') {
-      router.push('/admin')
-    } else {
-      router.push('/student')
-    }
-  } catch {
-    // 错误已由拦截器统一处理
-  } finally {
-    loading.value = false
-  }
+    router.push(res.data.role === 'admin' ? '/admin' : '/student')
+  } catch { /* 拦截器已处理 */ }
+  finally { loading.value = false }
 }
 </script>
 
 <style scoped>
-.login-container {
-  height: 100vh;
+.login-page {
+  min-height: 100vh;
   display: flex;
-  justify-content: center;
   align-items: center;
-  background-color: #f5f7fa;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(91,95,227,.06) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(91,95,227,.04) 0%, transparent 70%),
+    var(--c-bg);
+  padding: 24px;
 }
-.login-card {
+.login-box {
   width: 400px;
+  background: var(--c-bg-card);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg);
+  padding: 48px 40px 36px;
+  border: 1px solid var(--c-border-light);
 }
-.login-title {
-  text-align: center;
-  margin: 0;
-  color: #409eff;
+.login-brand { text-align: center; margin-bottom: 36px; }
+.login-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  border-radius: var(--r-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.login-btn {
-  width: 100%;
-}
-.register-link {
-  font-size: 13px;
-  color: #909399;
-}
-.register-link a {
-  color: #409eff;
-  text-decoration: none;
-}
+.login-brand__title { font-size: 22px; font-weight: 700; color: var(--c-text); margin: 0; letter-spacing: .02em; }
+.login-brand__sub { font-size: 14px; color: var(--c-text-secondary); margin: 4px 0 0; }
+.login-form { display: flex; flex-direction: column; gap: 20px; }
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-label { font-size: 13px; font-weight: 600; color: var(--c-text); }
+.login-submit { width: 100%; height: 46px; font-size: 16px; font-weight: 600; margin-top: 4px; }
+.login-foot { text-align: center; margin-top: 24px; font-size: 13px; color: var(--c-text-secondary); }
+.login-foot a { color: var(--c-primary); font-weight: 600; text-decoration: none; }
+.login-foot a:hover { text-decoration: underline; }
 </style>

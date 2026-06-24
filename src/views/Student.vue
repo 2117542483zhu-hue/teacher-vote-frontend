@@ -1,97 +1,121 @@
 <template>
-  <div class="student-container">
-    <el-container>
-      <el-header class="student-header">
-        <span class="header-title">学生投票端 —— 我最喜爱的教师评选</span>
-        <div class="header-user">
-          <span style="margin-right: 15px;">欢迎你，{{ userInfo.username }}</span>
-          <el-button type="info" size="small" @click="handleLogout">退出</el-button>
-        </div>
-      </el-header>
+  <div class="student-page">
+    <!-- 头部 -->
+    <header class="app-header">
+      <div class="app-header__title">🎓 我最喜爱的教师评选</div>
+      <div class="app-header__right">
+        <span>{{ userInfo.username }}</span>
+        <el-button size="small" round @click="handleLogout">退出</el-button>
+      </div>
+    </header>
 
-      <el-main>
-        <el-tabs v-model="activeTab" type="border-card" @tab-change="handleTabChange">
-          <el-tab-pane label="第二阶段：参与投票" name="vote">
-            <div v-if="userInfo.vote_status !== 0" class="voted-tip">
-              <el-result
-                icon="warning"
-                title="无法投票"
-                :sub-title="userInfo.vote_status === 1 ? '你已经参与过投票，无法更改。' : '你的选票因超过3项已作废！'"
-              />
+    <div class="app-main">
+      <el-tabs v-model="activeTab" type="border-card" @tab-change="handleTabChange">
+
+        <!-- ====== 投票 ====== -->
+        <el-tab-pane label="参与投票" name="vote">
+          <div v-if="userInfo.vote_status === 1" class="state-card fade-in">
+            <div class="state-icon state-icon--done">✓</div>
+            <h3>你已完成投票</h3>
+            <p>投票结果将在公示阶段揭晓</p>
+          </div>
+          <div v-else-if="userInfo.vote_status === 2" class="state-card fade-in">
+            <div class="state-icon state-icon--void">!</div>
+            <h3>选票已作废</h3>
+            <p>因勾选超过 3 项，你的选票被系统作废</p>
+          </div>
+
+          <template v-else>
+            <div class="vote-banner fade-in">
+              <div class="vote-banner__icon">⚡</div>
+              <div>
+                <strong>投票规则</strong>
+                <p>每人最多投 3 票，超过 3 票整张选票将直接作废，请谨慎勾选</p>
+              </div>
+              <div class="vote-count-badge">
+                {{ selectedTeacherIds.length }} <small>/ 3</small>
+              </div>
             </div>
 
-            <div v-else>
-              <div class="vote-hint">
-                <el-alert
-                  title="投票规则：请在下方初选出的教师中勾选。每人最多投 3 票，超过 3 票提交后整张选票将直接作废！"
-                  type="warning" show-icon :closable="false"
-                />
-                <p style="margin-top: 10px; font-weight: bold;">
-                  当前已勾选：{{ selectedTeacherIds.length }} / 3 票
-                </p>
-              </div>
-
-              <div class="teacher-grid">
-                <el-card v-for="teacher in candidateTeachers" :key="teacher.id" class="teacher-card" :body-style="{ padding: '15px' }">
-                  <div class="card-content">
-                    <h3 class="teacher-name">{{ teacher.name }}</h3>
-                    <p class="teacher-info">学院: {{ teacher.college }}</p>
-                    <p class="teacher-info">职称: {{ teacher.title }}</p>
-                    <div class="card-footer">
-                      <el-checkbox :label="teacher.id" v-model="selectedTeacherIds" @change="handleCheckboxChange">
-                        投他一票
-                      </el-checkbox>
-                    </div>
+            <div class="teacher-card-grid">
+              <el-card
+                v-for="(t, i) in candidateTeachers" :key="t.id"
+                class="vote-teacher-card fade-in"
+                :class="'fade-in-' + (i % 3 + 1)"
+                shadow="never"
+              >
+                <div class="vote-card-body">
+                  <el-avatar :src="t.photo_url" :size="48" style="margin-bottom: 12px;" />
+                  <h3 class="vote-card-name">{{ t.name }}</h3>
+                  <p class="vote-card-info">{{ t.college }}</p>
+                  <p class="vote-card-info">{{ t.title }}</p>
+                  <div class="vote-card-ft">
+                    <el-checkbox
+                      :label="t.id"
+                      v-model="selectedTeacherIds"
+                      @change="handleCheckboxChange"
+                      size="large"
+                    >
+                      <span style="font-weight: 600;">投他一票</span>
+                    </el-checkbox>
                   </div>
-                </el-card>
-              </div>
-
-              <div class="submit-bar">
-                <el-button type="primary" size="large" :loading="submitting" @click="submitVote" :disabled="selectedTeacherIds.length === 0">
-                  提交选票
-                </el-button>
-              </div>
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="第三阶段：公示与统计" name="result">
-            <div class="result-actions">
-              <el-button type="primary" @click="loadResults(false)">默认排序</el-button>
-              <el-button type="success" @click="loadResults(true)">按票数高低排序</el-button>
+                </div>
+              </el-card>
             </div>
 
-            <div class="top3-box" v-if="top3.length > 0">
-              <div class="podium medal-2" v-if="top3[1]">
-                <div class="medal-title">🥈 第二名</div>
-                <div class="medal-name">{{ top3[1].name }}</div>
-                <div class="medal-votes">{{ top3[1].vote_count }} 票</div>
-              </div>
-              <div class="podium medal-1" v-if="top3[0]">
-                <div class="medal-title">🥇 第一名</div>
-                <div class="medal-name">{{ top3[0].name }}</div>
-                <div class="medal-votes">{{ top3[0].vote_count }} 票</div>
-              </div>
-              <div class="podium medal-3" v-if="top3[2]">
-                <div class="medal-title">🥉 第三名</div>
-                <div class="medal-name">{{ top3[2].name }}</div>
-                <div class="medal-votes">{{ top3[2].vote_count }} 票</div>
-              </div>
+            <div class="submit-area fade-in">
+              <el-button
+                type="primary" size="large" round
+                :loading="submitting"
+                :disabled="selectedTeacherIds.length === 0"
+                @click="submitVote"
+              >
+                确认提交选票
+              </el-button>
             </div>
+          </template>
+        </el-tab-pane>
 
-            <el-table :data="resultTeachers" style="width: 100%; margin-top: 20px;" v-loading="resultLoading">
-              <el-table-column type="index" label="排名" width="80" />
-              <el-table-column prop="name" label="教师姓名" />
-              <el-table-column prop="college" label="所属学院" />
-              <el-table-column prop="vote_count" label="当前总得票数">
-                <template #default="scope">
-                  <span style="font-weight: bold; color: #f56c6c;">{{ scope.row.vote_count }} 票</span>
-                </template>
-              </el-table-column>
-            </el-table>
-          </el-tab-pane>
-        </el-tabs>
-      </el-main>
-    </el-container>
+        <!-- ====== 统计 ====== -->
+        <el-tab-pane label="公示与统计" name="result">
+          <div class="toolbar">
+            <el-button :type="sortMode === false ? 'primary' : 'default'" round @click="loadResults(false)">默认排序</el-button>
+            <el-button :type="sortMode === true ? 'primary' : 'default'" round @click="loadResults(true)">按票数排序</el-button>
+          </div>
+
+          <div class="podium-stage fade-in" v-if="top3.length > 0">
+            <div class="podium-block podium-silver" v-if="top3[1]">
+              <div class="podium-rank">🥈</div>
+              <div class="podium-name">{{ top3[1].name }}</div>
+              <div class="podium-votes">{{ top3[1].vote_count }} 票</div>
+            </div>
+            <div class="podium-block podium-gold" v-if="top3[0]">
+              <div class="podium-rank">🥇</div>
+              <div class="podium-name">{{ top3[0].name }}</div>
+              <div class="podium-votes">{{ top3[0].vote_count }} 票</div>
+            </div>
+            <div class="podium-block podium-bronze" v-if="top3[2]">
+              <div class="podium-rank">🥉</div>
+              <div class="podium-name">{{ top3[2].name }}</div>
+              <div class="podium-votes">{{ top3[2].vote_count }} 票</div>
+            </div>
+          </div>
+          <el-empty v-else description="暂无投票数据" />
+
+          <el-table :data="resultTeachers" v-loading="resultLoading" stripe>
+            <el-table-column type="index" label="#" width="56" />
+            <el-table-column prop="name" label="姓名" min-width="120" />
+            <el-table-column prop="college" label="学院" min-width="160" />
+            <el-table-column prop="vote_count" label="得票数" width="120" align="center">
+              <template #default="s">
+                <span class="table-votes">{{ s.row.vote_count }} <small>票</small></span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+
+      </el-tabs>
+    </div>
   </div>
 </template>
 
@@ -103,6 +127,7 @@ import api from '../api'
 
 const router = useRouter()
 const activeTab = ref('vote')
+const sortMode = ref(false)
 const userInfo = ref({})
 const candidateTeachers = ref([])
 const selectedTeacherIds = ref([])
@@ -115,12 +140,12 @@ const loadCandidates = async () => {
   try {
     const res = await api.getResults(false)
     candidateTeachers.value = res.data
-  } catch { /* 错误已由拦截器处理 */ }
+  } catch { /* 拦截器已处理 */ }
 }
 
 const handleCheckboxChange = () => {
   if (selectedTeacherIds.value.length > 3) {
-    ElMessage.error('注意：你已勾选超过 3 项！此时提交选票将会被系统直接作废！')
+    ElMessage.error('已超过 3 项！提交后选票将作废！')
   }
 }
 
@@ -132,19 +157,20 @@ const submitVote = () => {
       ElMessage.success(res.message)
       userInfo.value.vote_status = selectedTeacherIds.value.length > 3 ? 2 : 1
       localStorage.setItem('user', JSON.stringify(userInfo.value))
-    } catch { /* 错误已由拦截器处理 */ }
+    } catch { /* 拦截器已处理 */ }
     finally { submitting.value = false }
   }).catch(() => {})
 }
 
 const loadResults = async (isSort = false) => {
+  sortMode.value = isSort
   resultLoading.value = true
   try {
     const res = await api.getResults(isSort)
     resultTeachers.value = res.data
     const sorted = [...res.data].sort((a, b) => b.vote_count - a.vote_count)
     top3.value = sorted.slice(0, 3)
-  } catch { /* 错误已由拦截器处理 */ }
+  } catch { /* 拦截器已处理 */ }
   finally { resultLoading.value = false }
 }
 
@@ -164,23 +190,63 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.student-container { min-height: 100vh; background-color: #f5f7fa; }
-.student-header { background-color: #67C23A; color: white; display: flex; justify-content: space-between; align-items: center; }
-.header-title { font-size: 18px; font-weight: bold; }
-.vote-hint { margin-bottom: 20px; }
-.teacher-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
-.teacher-card { border-radius: 8px; box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1); }
-.teacher-name { margin: 0 0 10px 0; color: #303133; }
-.teacher-info { font-size: 14px; color: #606266; margin: 5px 0; }
-.card-footer { margin-top: 15px; border-top: 1px solid #f2f6fc; padding-top: 10px; text-align: right; }
-.submit-bar { text-align: center; }
-.result-actions { margin-bottom: 20px; }
-.top3-box { display: flex; justify-content: center; align-items: flex-end; gap: 20px; margin: 30px 0; padding: 20px; background-color: #fafafa; border-radius: 8px; }
-.podium { width: 120px; text-align: center; padding: 15px; border-radius: 8px 8px 0 0; color: white; }
-.medal-1 { height: 140px; background-color: #e6a23c; font-weight: bold; }
-.medal-2 { height: 110px; background-color: #909399; }
-.medal-3 { height: 90px; background-color: #cd7f32; }
-.medal-title { font-size: 14px; margin-bottom: 5px; }
-.medal-name { font-size: 18px; font-weight: bold; }
-.voted-tip { padding: 40px 0; }
+.student-page { min-height: 100vh; background: var(--c-bg); }
+
+/* 投票横幅 */
+.vote-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, #fef9f0 0%, #fff8e8 100%);
+  border-radius: var(--r-lg);
+  border: 1px solid #fde8c8;
+  margin-bottom: 28px;
+}
+.vote-banner__icon { font-size: 28px; flex-shrink: 0; }
+.vote-banner strong { display: block; margin-bottom: 2px; }
+.vote-banner p { margin: 0; font-size: 13px; color: var(--c-text-secondary); }
+.vote-count-badge {
+  margin-left: auto;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--c-primary);
+  flex-shrink: 0;
+}
+.vote-count-badge small { font-size: 14px; font-weight: 500; color: var(--c-text-secondary); }
+
+/* 教师卡片 */
+.vote-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* 提交区域 */
+.submit-area { text-align: center; margin-top: 12px; padding: 28px 0 8px; }
+
+/* 状态卡片 */
+.state-card {
+  text-align: center;
+  padding: 64px 24px;
+  background: var(--c-bg-card);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--c-border-light);
+}
+.state-icon {
+  width: 72px; height: 72px;
+  margin: 0 auto 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; font-weight: 700;
+}
+.state-icon--done { background: #e8f8ed; color: var(--c-success); }
+.state-icon--void { background: #ffeaea; color: var(--c-danger); }
+.state-card h3 { margin: 0 0 8px; font-size: 20px; }
+.state-card p { margin: 0; color: var(--c-text-secondary); }
+
+/* 得票数 */
+.table-votes { font-weight: 700; color: var(--c-primary); }
+.table-votes small { font-weight: 400; color: var(--c-text-secondary); }
 </style>
