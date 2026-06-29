@@ -1,19 +1,45 @@
+<!--
+=============================================================================
+文件: src/views/Admin.vue — 管理员后台页面
+负责人: 人二 (教师管理 tab + 学生管理 tab + 两个编辑弹窗)
+        人三 (推荐候选人 tab + 投票统计 tab)
+讲解要点:
+  人二:
+    - 教师管理 tab — el-table 展示教师列表 + 搜索/添加/编辑/删除操作
+    - 学生管理 tab — el-table 展示学生列表 + 搜索/添加/编辑/删除操作
+    - 教师弹窗 — el-dialog + el-form + el-upload 照片上传
+    - 学生弹窗 — el-dialog + el-form + el-radio-group 角色选择
+    - Element Plus 表格组件: el-table-column prop/label/width, v-loading
+    - 弹窗组件: el-dialog visible/title/width, template #footer
+  人三:
+    - 推荐候选人 tab — 勾选教师生成初选名单（最多 10 人）
+    - 投票统计 tab — 查看候选人得票，按票数排序，领奖台展示前 3 名
+    - el-table type="selection" — 多选功能
+    - 领奖台 UI — 🥇🥈🥉 金银铜牌布局
+=============================================================================
+-->
 <template>
   <div class="admin-page">
+    <!-- 人二讲解：页面顶部栏 — 显示用户名 + 重置系统 + 退出按钮 -->
     <header class="app-header">
       <div class="app-header__title">⚙ 管理后台</div>
       <div class="app-header__right">
         <span>{{ adminInfo.username }}</span>
+        <!-- 人三讲解：重置系统按钮 — 一键清空所有投票数据 -->
         <el-button size="small" round type="danger" @click="handleResetSystem">重置系统</el-button>
         <el-button size="small" round @click="handleLogout">退出</el-button>
       </div>
     </header>
 
     <div class="app-main">
+      <!-- 人二讲解：el-tabs 标签页切换 — 四个 tab 分别对应教师管理/学生管理/推荐候选人/投票统计 -->
       <el-tabs v-model="activeTab" type="border-card" @tab-change="handleTabChange">
 
-        <!-- ====== Tab 1: 教师管理 ====== -->
+        <!-- ================================================================= -->
+        <!-- 人二讲解：Tab 1 — 教师管理（CRUD）                                 -->
+        <!-- ================================================================= -->
         <el-tab-pane label="教师管理" name="teachers">
+          <!-- 人二讲解：工具栏 — 搜索框 + 搜索按钮 + 添加按钮 -->
           <div class="toolbar">
             <el-input v-model="teacherSearch" placeholder="搜索教师姓名…" clearable style="width: 260px;"
               @clear="loadTeachers" @keyup.enter="loadTeachers" />
@@ -21,6 +47,7 @@
             <el-button round @click="openTeacherDialog(null)">+ 添加教师</el-button>
           </div>
 
+          <!-- 人二讲解：el-table 数据表格 — stripe 斑马纹，v-loading 加载状态 -->
           <el-table :data="teachers" stripe v-loading="teacherLoading">
             <el-table-column prop="id" label="#" width="52" />
             <el-table-column prop="name" label="姓名" width="100" />
@@ -28,12 +55,14 @@
             <el-table-column prop="title" label="职称" width="100" />
             <el-table-column prop="age" label="年龄" width="64" />
             <el-table-column prop="vote_count" label="票数" width="64" />
+            <!-- 人二讲解：自定义列 — 用 template #default="s" 访问当前行数据 s.row -->
             <el-table-column label="照片" width="72">
               <template #default="s">
                 <el-avatar :src="s.row.photo_url" :size="36" v-if="s.row.photo_url" />
                 <span v-else class="text-muted">—</span>
               </template>
             </el-table-column>
+            <!-- 人二讲解：候选人标记 — el-tag 显示是/否 -->
             <el-table-column label="候选" width="72">
               <template #default="s">
                 <el-tag :type="s.row.is_candidate ? 'success' : 'info'" size="small" round>
@@ -41,6 +70,7 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <!-- 人二讲解：操作列 — 编辑/删除按钮，fixed="right" 固定在右侧 -->
             <el-table-column label="操作" width="170" fixed="right">
               <template #default="s">
                 <el-button type="primary" size="small" round plain @click="openTeacherDialog(s.row)">编辑</el-button>
@@ -50,7 +80,9 @@
           </el-table>
         </el-tab-pane>
 
-        <!-- ====== Tab 2: 学生管理 ====== -->
+        <!-- ================================================================= -->
+        <!-- 人二讲解：Tab 2 — 学生管理（CRUD）                                 -->
+        <!-- ================================================================= -->
         <el-tab-pane label="学生管理" name="students">
           <div class="toolbar">
             <el-input v-model="studentSearch" placeholder="搜索用户名…" clearable style="width: 260px;"
@@ -62,6 +94,7 @@
           <el-table :data="students" stripe v-loading="studentLoading">
             <el-table-column prop="id" label="#" width="52" />
             <el-table-column prop="username" label="用户名" width="140" />
+            <!-- 人二讲解：角色标签 — admin 显示红色'管理员'，否则显示'学生' -->
             <el-table-column label="角色" width="90">
               <template #default="s">
                 <el-tag :type="s.row.role === 'admin' ? 'danger' : ''" size="small" round>
@@ -69,6 +102,7 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <!-- 人二讲解：投票状态列 — 0=未投票(info) 1=已投票(success) 2=已作废(danger) -->
             <el-table-column label="投票状态" width="110">
               <template #default="s">
                 <template v-if="s.row.role === 'student'">
@@ -88,8 +122,11 @@
           </el-table>
         </el-tab-pane>
 
-        <!-- ====== Tab 3: 推荐候选人 ====== -->
+        <!-- ================================================================= -->
+        <!-- 人三讲解：Tab 3 — 推荐候选人（第一阶段）                             -->
+        <!-- ================================================================= -->
         <el-tab-pane label="推荐候选人" name="recommend">
+          <!-- 人三讲解：投票规则横幅 — 展示当前已选数量和上限 -->
           <div class="vote-banner fade-in">
             <div class="vote-banner__icon">📋</div>
             <div>
@@ -108,6 +145,7 @@
             <el-button round @click="loadCandidateTeachers">刷新列表</el-button>
           </div>
 
+          <!-- 人三讲解：当前候选人展示区 — 卡片形式展示已设为候选的教师 -->
           <div class="candidate-showcase" v-if="currentCandidates.length > 0">
             <el-card v-for="t in currentCandidates" :key="t.id" class="candidate-showcase-card" shadow="never">
               <el-avatar :src="t.photo_url" :size="44" style="margin-bottom: 8px;" />
@@ -119,6 +157,7 @@
 
           <el-divider />
 
+          <!-- 人三讲解：候选人选择表格 — type="selection" 启用多选列 -->
           <el-table :data="candidateTeacherList" stripe @selection-change="handleCandidateSelectionChange"
             ref="candidateTableRef" v-loading="candidateLoading">
             <el-table-column type="selection" width="44" />
@@ -136,24 +175,30 @@
           </el-table>
         </el-tab-pane>
 
-        <!-- ====== Tab 4: 投票统计 ====== -->
+        <!-- ================================================================= -->
+        <!-- 人三讲解：Tab 4 — 投票统计（第三阶段）                              -->
+        <!-- ================================================================= -->
         <el-tab-pane label="投票统计" name="results">
           <div class="toolbar">
             <el-button :type="adminSortMode === false ? 'primary' : 'default'" round @click="loadAdminResults(false)">默认排序</el-button>
             <el-button :type="adminSortMode === true ? 'primary' : 'default'" round @click="loadAdminResults(true)">按票数排序</el-button>
           </div>
 
+          <!-- 人三讲解：领奖台 — 🥇🥈🥉 展示得票前三名教师 -->
           <div class="podium-stage fade-in" v-if="adminTop3.length > 0">
+            <!-- 人三讲解：第二名（银牌）— 左侧 -->
             <div class="podium-block podium-silver" v-if="adminTop3[1]">
               <div class="podium-rank">🥈</div>
               <div class="podium-name">{{ adminTop3[1].name }}</div>
               <div class="podium-votes">{{ adminTop3[1].vote_count }} 票</div>
             </div>
+            <!-- 人三讲解：第一名（金牌）— 中间，高度最高 -->
             <div class="podium-block podium-gold" v-if="adminTop3[0]">
               <div class="podium-rank">🥇</div>
               <div class="podium-name">{{ adminTop3[0].name }}</div>
               <div class="podium-votes">{{ adminTop3[0].vote_count }} 票</div>
             </div>
+            <!-- 人三讲解：第三名（铜牌）— 右侧 -->
             <div class="podium-block podium-bronze" v-if="adminTop3[2]">
               <div class="podium-rank">🥉</div>
               <div class="podium-name">{{ adminTop3[2].name }}</div>
@@ -162,6 +207,7 @@
           </div>
           <el-empty v-else description="暂无投票数据" />
 
+          <!-- 人三讲解：投票结果详细表格 -->
           <el-table :data="adminResults" stripe v-loading="resultLoading">
             <el-table-column type="index" label="#" width="52" />
             <el-table-column prop="name" label="姓名" width="120" />
@@ -179,7 +225,10 @@
       </el-tabs>
     </div>
 
-    <!-- 教师弹窗 -->
+    <!-- ================================================================= -->
+    <!-- 人二讲解：教师编辑弹窗                                             -->
+    <!-- el-dialog — 模态对话框，visible 控制显示/隐藏                     -->
+    <!-- ================================================================= -->
     <el-dialog v-model="teacherDialogVisible" :title="isEditTeacher ? '编辑教师' : '添加教师'" width="500px">
       <el-form :model="teacherForm" label-width="64px">
         <el-form-item label="姓名" required>
@@ -192,8 +241,10 @@
           <el-input v-model="teacherForm.title" placeholder="请输入职称" />
         </el-form-item>
         <el-form-item label="年龄">
+          <!-- 人二讲解：el-input-number — 数字输入框，限制 20-100 -->
           <el-input-number v-model="teacherForm.age" :min="20" :max="100" />
         </el-form-item>
+        <!-- 人二讲解：照片上传区域 — el-upload + el-avatar 预览 -->
         <el-form-item label="照片">
           <div style="display: flex; align-items: center; gap: 14px;">
             <el-upload :show-file-list="false" :http-request="handlePhotoUpload" accept="image/*">
@@ -209,7 +260,9 @@
       </template>
     </el-dialog>
 
-    <!-- 学生弹窗 -->
+    <!-- ================================================================= -->
+    <!-- 人二讲解：学生编辑弹窗                                             -->
+    <!-- ================================================================= -->
     <el-dialog v-model="studentDialogVisible" :title="isEditStudent ? '编辑学生' : '添加学生'" width="480px">
       <el-form :model="studentForm" label-width="72px">
         <el-form-item label="用户名" required>
@@ -217,8 +270,10 @@
         </el-form-item>
         <el-form-item label="密码" :required="!isEditStudent">
           <el-input v-model="studentForm.password" placeholder="请输入密码" show-password />
+          <!-- 人二讲解：编辑时提示 — 留空则不修改密码 -->
           <span v-if="isEditStudent" class="text-muted" style="font-size: 12px;">留空则不修改密码</span>
         </el-form-item>
+        <!-- 人二讲解：角色选择 — el-radio-group 单选组 -->
         <el-form-item label="角色">
           <el-radio-group v-model="studentForm.role">
             <el-radio label="student" size="large">学生</el-radio>
@@ -235,6 +290,7 @@
 </template>
 
 <script setup>
+// ===== 导入依赖 =====
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -245,39 +301,46 @@ const activeTab = ref('teachers')
 const adminInfo = ref({})
 const adminSortMode = ref(false)
 
-const teachers = ref([])
-const teacherSearch = ref('')
-const teacherLoading = ref(false)
+// ===== 人二讲解：教师管理相关状态 =====
+const teachers = ref([])           // 教师列表数据
+const teacherSearch = ref('')      // 搜索关键词
+const teacherLoading = ref(false)  // 加载状态
 
+// ===== 人二讲解：学生管理相关状态 =====
 const students = ref([])
 const studentSearch = ref('')
 const studentLoading = ref(false)
 
-const candidateTeacherList = ref([])
-const selectedCandidateIds = ref([])
-const currentCandidates = ref([])
+// ===== 人三讲解：候选人推荐相关状态 =====
+const candidateTeacherList = ref([])    // 全部教师（用于勾选）
+const selectedCandidateIds = ref([])    // 当前勾选的教师 ID 数组
+const currentCandidates = ref([])       // 已是候选人的教师列表
 const candidateLoading = ref(false)
-const candidateTableRef = ref(null)
+const candidateTableRef = ref(null)     // 表格引用，用于回显勾选状态
 
-const adminResults = ref([])
-const adminTop3 = ref([])
+// ===== 人三讲解：投票统计相关状态 =====
+const adminResults = ref([])   // 候选人得票数据
+const adminTop3 = ref([])      // 得票前三名
 const resultLoading = ref(false)
 
+// ===== 人二讲解：教师弹窗相关状态 =====
 const teacherDialogVisible = ref(false)
 const isEditTeacher = ref(false)
 const editingTeacherId = ref(null)
 const teacherSubmitting = ref(false)
 const teacherFormDefault = { name: '', college: '', title: '', age: 30, photo_url: '' }
-const teacherForm = reactive({ ...teacherFormDefault })
+const teacherForm = reactive({ ...teacherFormDefault })  // reactive 用于对象表单
 
+// 人二讲解：照片上传处理 — el-upload 的 :http-request 自定义上传
 const handlePhotoUpload = async ({ file }) => {
   try {
     const res = await api.uploadPhoto(file)
-    teacherForm.photo_url = res.data
+    teacherForm.photo_url = res.data   // 将返回的 URL 填入表单
     ElMessage.success('照片上传成功')
   } catch { /* 拦截器已处理 */ }
 }
 
+// ===== 人二讲解：学生弹窗相关状态 =====
 const studentDialogVisible = ref(false)
 const isEditStudent = ref(false)
 const editingStudentId = ref(null)
@@ -285,6 +348,11 @@ const studentSubmitting = ref(false)
 const studentFormDefault = { username: '', password: '', role: 'student' }
 const studentForm = reactive({ ...studentFormDefault })
 
+// =================================================================
+// 人二讲解：教师 CRUD 方法
+// =================================================================
+
+// 获取教师列表 — 可选搜索关键词
 const loadTeachers = async () => {
   teacherLoading.value = true
   try { const res = await api.getTeachers(teacherSearch.value || undefined); teachers.value = res.data }
@@ -292,17 +360,20 @@ const loadTeachers = async () => {
   finally { teacherLoading.value = false }
 }
 
+// 打开教师弹窗 — row 为空表示新增，有值表示编辑
 const openTeacherDialog = (row) => {
   if (row) {
     isEditTeacher.value = true; editingTeacherId.value = row.id
+    // 人二讲解：Object.assign 将行数据复制到表单（避免直接修改原始数据）
     Object.assign(teacherForm, { name: row.name, college: row.college || '', title: row.title || '', age: row.age || 30, photo_url: row.photo_url || '' })
   } else {
     isEditTeacher.value = false; editingTeacherId.value = null
-    Object.assign(teacherForm, teacherFormDefault)
+    Object.assign(teacherForm, teacherFormDefault)  // 重置为默认值
   }
   teacherDialogVisible.value = true
 }
 
+// 提交教师表单 — 创建或更新
 const submitTeacherForm = async () => {
   if (!teacherForm.name.trim()) { ElMessage.warning('请输入教师姓名'); return }
   teacherSubmitting.value = true
@@ -315,12 +386,17 @@ const submitTeacherForm = async () => {
   finally { teacherSubmitting.value = false }
 }
 
+// 删除教师 — 弹窗确认（ElMessageBox.confirm）
 const deleteTeacher = (id) => {
   ElMessageBox.confirm('确定删除该教师吗？此操作不可恢复。', '警告', { type: 'warning' }).then(async () => {
     try { await api.deleteTeacher(id); ElMessage.success('删除成功'); loadTeachers() }
     catch { /* 拦截器已处理 */ }
   }).catch(() => {})
 }
+
+// =================================================================
+// 人二讲解：学生 CRUD 方法
+// =================================================================
 
 const loadStudents = async () => {
   studentLoading.value = true
@@ -345,6 +421,7 @@ const submitStudentForm = async () => {
   if (!isEditStudent.value && !studentForm.password) { ElMessage.warning('请输入密码'); return }
   studentSubmitting.value = true
   try {
+    // 人二讲解：编辑时密码为空则发送 '__KEEP_OLD__'，后端识别后保留原密码
     const payload = { username: studentForm.username.trim(), password: studentForm.password || '__KEEP_OLD__', role: studentForm.role }
     isEditStudent.value ? await api.updateStudent(editingStudentId.value, payload) : await api.addStudent(payload)
     ElMessage.success(isEditStudent.value ? '修改成功' : '添加成功')
@@ -360,13 +437,20 @@ const deleteStudent = (id) => {
   }).catch(() => {})
 }
 
+// =================================================================
+// 人三讲解：候选人推荐方法（第一阶段）
+// =================================================================
+
+// 加载全部教师用于候选人勾选
 const loadCandidateTeachers = async () => {
   candidateLoading.value = true
   try {
     const res = await api.getTeachers()
     candidateTeacherList.value = res.data
+    // 人三讲解：回显已有候选人 — 将 is_candidate=1 的教师 ID 预填入勾选数组
     selectedCandidateIds.value = res.data.filter(t => t.is_candidate === 1).map(t => t.id)
     loadCurrentCandidates()
+    // 人三讲解：nextTick 等 DOM 更新后再调用 toggleRowSelection 勾选表格行
     await nextTick()
     if (candidateTableRef.value) {
       candidateTeacherList.value.forEach(row => {
@@ -377,16 +461,19 @@ const loadCandidateTeachers = async () => {
   finally { candidateLoading.value = false }
 }
 
+// 加载当前候选人列表
 const loadCurrentCandidates = async () => {
   try { const res = await api.getResults(false); currentCandidates.value = res.data }
   catch { /* ignore */ }
 }
 
+// 人三讲解：勾选变化处理 — 限制最多选 10 人
 const handleCandidateSelectionChange = (rows) => {
   if (rows.length > 10) { ElMessage.error('最多只能推荐 10 名候选人'); return }
   selectedCandidateIds.value = rows.map(r => r.id)
 }
 
+// 人三讲解：确认生成初选名单 — 调用后端推荐接口
 const confirmRecommend = () => {
   if (selectedCandidateIds.value.length === 0) { ElMessage.warning('请至少选择 1 名候选人'); return }
   ElMessageBox.confirm(
@@ -398,25 +485,38 @@ const confirmRecommend = () => {
   }).catch(() => {})
 }
 
+// =================================================================
+// 人三讲解：投票统计方法（第三阶段）
+// =================================================================
+
+// 加载投票结果 — sortByVote 控制排序方式
 const loadAdminResults = async (sortByVote = false) => {
   adminSortMode.value = sortByVote
   resultLoading.value = true
   try {
     const res = await api.getResults(sortByVote)
     adminResults.value = res.data
+    // 人三讲解：前端二次排序取出前三名 — 确保领奖台显示的绝对正确
     const sorted = [...res.data].sort((a, b) => b.vote_count - a.vote_count)
     adminTop3.value = sorted.slice(0, 3)
   } catch { /* 拦截器已处理 */ }
   finally { resultLoading.value = false }
 }
 
+// =================================================================
+// 公共方法
+// =================================================================
+
+// 人二讲解：Tab 切换时自动加载对应数据
 const handleTabChange = (tabName) => {
   const loaders = { teachers: loadTeachers, students: loadStudents, recommend: loadCandidateTeachers, results: () => loadAdminResults(false) }
   loaders[tabName]?.()
 }
 
+// 人二讲解：退出登录 — 清空 localStorage 并跳回登录页
 const handleLogout = () => { localStorage.clear(); router.push('/') }
 
+// 人三讲解：系统重置 — 二次确认后调用后端重置接口
 const handleResetSystem = () => {
   ElMessageBox.confirm(
     '⚠ 确定要重置整个系统吗？\n\n此操作将：\n• 清空所有投票记录\n• 将所有教师票数归零\n• 清除候选人名单\n• 删除所有学生账号\n\n管理员账号不受影响。此操作不可恢复！',
@@ -426,13 +526,14 @@ const handleResetSystem = () => {
     try {
       await api.resetSystem()
       ElMessage.success('系统已重置')
-      // 刷新当前标签页数据
+      // 人三讲解：重置后刷新当前标签页数据
       const loaders = { teachers: loadTeachers, students: loadStudents, recommend: loadCandidateTeachers, results: () => loadAdminResults(false) }
       loaders[activeTab.value]?.()
     } catch { /* 拦截器已处理 */ }
   }).catch(() => {})
 }
 
+// 人二讲解：onMounted 生命周期 — 组件挂载后执行，初始加载教师列表
 onMounted(() => {
   adminInfo.value = JSON.parse(localStorage.getItem('user'))
   loadTeachers()
@@ -448,7 +549,7 @@ onMounted(() => {
     var(--c-bg);
 }
 
-/* 管理端投票横幅额外 */
+/* 人三讲解：投票横幅光泽动画 — shimmer 从左到右扫过 */
 .vote-banner {
   position: relative;
   overflow: hidden;

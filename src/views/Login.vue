@@ -1,3 +1,17 @@
+<!--
+=============================================================================
+文件: src/views/Login.vue — 登录页面
+负责人: 人一 (用户认证与权限体系)
+讲解要点:
+  1. Vue 3 Composition API — <script setup> 语法糖，ref/reactive 响应式数据
+  2. el-form / el-input — Element Plus 表单组件
+  3. api.login() — 调用后端登录接口
+  4. localStorage.setItem('user', ...) — 登录状态持久化
+  5. router.push() — 根据 role 跳转到管理员或学生页面
+  6. loading 状态 — 防止重复提交
+  7. CSS 毛玻璃效果 — backdrop-filter: blur()
+=============================================================================
+-->
 <template>
   <div class="login-page">
     <div class="login-box fade-in">
@@ -13,9 +27,11 @@
         <p class="login-brand__sub">评选投票系统</p>
       </div>
 
+      <!-- 人一讲解：登录表单 — el-form 是 Element Plus 表单容器 -->
       <el-form :model="loginForm" @submit.prevent class="login-form">
         <div class="input-group">
           <label class="input-label">账号</label>
+          <!-- 人一讲解：v-model 双向绑定 — 输入框的值自动同步到 loginForm.username -->
           <el-input
             v-model="loginForm.username"
             placeholder="请输入学工号"
@@ -34,6 +50,7 @@
             @keyup.enter="handleLogin"
           />
         </div>
+        <!-- 人一讲解：:loading="loading" — 按钮加载状态，防止用户重复点击 -->
         <el-button
           type="primary"
           size="large"
@@ -54,28 +71,36 @@
 </template>
 
 <script setup>
+// ===== 人一讲解：Vue 3 Composition API =====
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '../api'
 
-const router = useRouter()
-const loading = ref(false)
+const router = useRouter()    // 人一讲解：获取路由实例，用于编程式导航
+const loading = ref(false)    // 人一讲解：ref 创建响应式变量，loading.value 读写
 
+// 人一讲解：ref 包装对象使其变为响应式 — 表单数据变化时视图自动更新
 const loginForm = ref({ username: '', password: '' })
 
+// 人一讲解：登录处理函数 — async/await 处理异步请求
 const handleLogin = async () => {
+  // 人一讲解：前端表单校验 — 空值检查
   if (!loginForm.value.username || !loginForm.value.password) {
     ElMessage.warning('请输入用户名和密码')
     return
   }
-  loading.value = true
+  loading.value = true  // 人一讲解：开始加载，按钮显示转圈
   try {
+    // 人一讲解：调用 API 登录 — 后端返回 { code, message, data: { id, username, role, vote_status } }
     const res = await api.login(loginForm.value.username, loginForm.value.password)
     ElMessage.success('登录成功')
+    // 人一讲解：将用户信息存入 localStorage — 持久化存储，刷新页面不丢失
+    // 后续路由守卫和页面都从这里读取用户身份
     localStorage.setItem('user', JSON.stringify(res.data))
+    // 人一讲解：根据角色跳转 — admin 进管理后台，student 进投票页面
     router.push(res.data.role === 'admin' ? '/admin' : '/student')
-  } catch { /* 拦截器已处理 */ }
+  } catch { /* 拦截器已处理 — 不需要额外操作 */ }
   finally { loading.value = false }
 }
 </script>
@@ -91,7 +116,7 @@ const handleLogin = async () => {
   padding: 24px;
 }
 
-/* 动态装饰圆环 */
+/* 人一讲解：CSS 装饰元素 — ::before/::after 伪元素创建背景光晕动画 */
 .login-page::before {
   content: '';
   position: absolute;
@@ -115,6 +140,7 @@ const handleLogin = async () => {
   pointer-events: none;
 }
 
+/* 人一讲解：毛玻璃卡片 — backdrop-filter: blur() + 半透明背景 */
 .login-box {
   width: 420px;
   position: relative;

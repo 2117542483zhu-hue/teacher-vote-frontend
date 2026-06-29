@@ -1,3 +1,13 @@
+<!--
+=============================================================================
+文件: index.html — 前端入口 HTML 页面
+负责人: 人一 (用户认证与权限体系)
+讲解要点:
+  1. <div id="app"> — Vue 应用的挂载点，Vue 会把整个页面渲染到这里面
+  2. <script type="module"> — ES Module 方式加载 main.js，支持 import 语法
+  3. Vite 开发服务器会自动处理模块打包和热更新
+=============================================================================
+-->
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
@@ -10,7 +20,9 @@
     <title>我最喜爱的教师评选系统</title>
   </head>
   <body>
+    <!-- 人一讲解：Vue 应用的挂载点，createApp(App).mount('#app') 会将组件渲染到这里 -->
     <div id="app"></div>
+    <!-- 人一讲解：ES Module 加载入口 JS，Vite 从这里开始编译整个前端项目 -->
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

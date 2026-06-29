@@ -1,3 +1,15 @@
+<!--
+=============================================================================
+文件: src/views/Register.vue — 学生注册页面
+负责人: 人一 (用户认证与权限体系)
+讲解要点:
+  1. 注册表单 — 用户名 + 密码 + 确认密码 三字段
+  2. 前端二次密码校验 — 确认密码与密码不一致时提示
+  3. api.register() — 调用后端注册接口
+  4. 注册成功后自动跳转到登录页
+  5. router-link — Vue Router 声明式导航（与编程式 router.push 对比）
+=============================================================================
+-->
 <template>
   <div class="register-page">
     <div class="register-box">
@@ -25,6 +37,7 @@
         </div>
         <div class="input-group">
           <label class="input-label">确认密码</label>
+          <!-- 人一讲解：show-password 属性 — 点击眼睛图标切换密码显示/隐藏 -->
           <el-input v-model="registerForm.confirmPassword" type="password" placeholder="请再次输入密码" size="large" show-password @keyup.enter="handleRegister" />
         </div>
         <el-button type="primary" size="large" class="register-submit" :loading="loading" @click="handleRegister" round>
@@ -49,14 +62,17 @@ const router = useRouter()
 const loading = ref(false)
 const registerForm = ref({ username: '', password: '', confirmPassword: '' })
 
+// 人一讲解：注册处理函数
 const handleRegister = async () => {
   const { username, password, confirmPassword } = registerForm.value
+  // 人一讲解：前端校验 — 空值检查 + 两次密码一致性检查
   if (!username || !password) { ElMessage.warning('用户名和密码不能为空'); return }
   if (password !== confirmPassword) { ElMessage.warning('两次输入的密码不一致'); return }
   loading.value = true
   try {
     await api.register(username, password)
     ElMessage.success('注册成功，即将跳转登录...')
+    // 人一讲解：延迟 1 秒后跳转 — 让用户看到成功提示再跳
     setTimeout(() => router.push('/'), 1000)
   } catch { /* 拦截器已处理 */ }
   finally { loading.value = false }

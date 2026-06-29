@@ -1,6 +1,22 @@
+<!--
+=============================================================================
+文件: src/views/Student.vue — 学生端页面（投票 + 公示）
+负责人: 人三 (投票核心流程模块)
+讲解要点:
+  1. 投票 tab — 学生参与投票的核心页面
+     - 投票状态判断: 未投票(vote_status=0) 可投 / 已投票(1) 不可投 / 已作废(2) 不可投
+     - 候选人卡片墙 — el-card 网格布局 + el-checkbox 多选
+     - 投票规则: 每人最多 3 票，超 3 票提交后选票作废
+     - submitVote — 调用后端投票接口，成功后更新本地状态
+  2. 公示统计 tab — 查看投票结果
+     - 排序切换 — 默认排序 / 按票数排序
+     - 领奖台展示前三名 🥇🥈🥉
+     - 完整排名表格
+=============================================================================
+-->
 <template>
   <div class="student-page">
-    <!-- 头部 -->
+    <!-- 人三讲解：顶部栏 — 显示用户名 + 退出按钮 -->
     <header class="app-header">
       <div class="app-header__title">🎓 我最喜爱的教师评选</div>
       <div class="app-header__right">
@@ -12,20 +28,28 @@
     <div class="app-main">
       <el-tabs v-model="activeTab" type="border-card" @tab-change="handleTabChange">
 
-        <!-- ====== 投票 ====== -->
+        <!-- ================================================================= -->
+        <!-- 人三讲解：Tab 1 — 参与投票（第二阶段）                              -->
+        <!-- ================================================================= -->
         <el-tab-pane label="参与投票" name="vote">
+
+          <!-- 人三讲解：已投票状态卡片 — vote_status=1 时展示，用户不可再投票 -->
           <div v-if="userInfo.vote_status === 1" class="state-card fade-in">
             <div class="state-icon state-icon--done">✓</div>
             <h3>你已完成投票</h3>
             <p>投票结果将在公示阶段揭晓</p>
           </div>
+
+          <!-- 人三讲解：选票作废状态卡片 — vote_status=2 时展示（超 3 票） -->
           <div v-else-if="userInfo.vote_status === 2" class="state-card fade-in">
             <div class="state-icon state-icon--void">!</div>
             <h3>选票已作废</h3>
             <p>因勾选超过 3 项，你的选票被系统作废</p>
           </div>
 
+          <!-- 人三讲解：未投票状态 — vote_status=0 时展示投票界面 -->
           <template v-else>
+            <!-- 人三讲解：投票规则横幅 — 显示当前已选数量和上限 3 -->
             <div class="vote-banner fade-in">
               <div class="vote-banner__icon">⚡</div>
               <div>
@@ -37,6 +61,7 @@
               </div>
             </div>
 
+            <!-- 人三讲解：候选人卡片网格 — el-card 组件展示候选人信息 -->
             <div class="teacher-card-grid">
               <el-card
                 v-for="(t, i) in candidateTeachers" :key="t.id"
@@ -45,11 +70,14 @@
                 shadow="never"
               >
                 <div class="vote-card-body">
+                  <!-- 人三讲解：el-avatar 头像 — 显示教师照片 -->
                   <el-avatar :src="t.photo_url" :size="48" style="margin-bottom: 12px;" />
                   <h3 class="vote-card-name">{{ t.name }}</h3>
                   <p class="vote-card-info">{{ t.college }}</p>
                   <p class="vote-card-info">{{ t.title }}</p>
                   <div class="vote-card-ft">
+                    <!-- 人三讲解：el-checkbox 多选框 — label 绑定教师 ID
+                         v-model 数组: 选中时 id 加入数组，取消时移除 -->
                     <el-checkbox
                       :label="t.id"
                       v-model="selectedTeacherIds"
@@ -63,6 +91,7 @@
               </el-card>
             </div>
 
+            <!-- 人三讲解：提交投票按钮 — :disabled 禁止空投 -->
             <div class="submit-area fade-in">
               <el-button
                 type="primary" size="large" round
@@ -76,13 +105,17 @@
           </template>
         </el-tab-pane>
 
-        <!-- ====== 统计 ====== -->
+        <!-- ================================================================= -->
+        <!-- 人三讲解：Tab 2 — 公示与统计（第三阶段）                            -->
+        <!-- ================================================================= -->
         <el-tab-pane label="公示与统计" name="result">
           <div class="toolbar">
+            <!-- 人三讲解：排序切换按钮 — :type 控制高亮 -->
             <el-button :type="sortMode === false ? 'primary' : 'default'" round @click="loadResults(false)">默认排序</el-button>
             <el-button :type="sortMode === true ? 'primary' : 'default'" round @click="loadResults(true)">按票数排序</el-button>
           </div>
 
+          <!-- 人三讲解：领奖台 — 与管理员端相同，展示得票前三名 -->
           <div class="podium-stage fade-in" v-if="top3.length > 0">
             <div class="podium-block podium-silver" v-if="top3[1]">
               <div class="podium-rank">🥈</div>
@@ -102,6 +135,7 @@
           </div>
           <el-empty v-else description="暂无投票数据" />
 
+          <!-- 人三讲解：投票结果详细表格 -->
           <el-table :data="resultTeachers" v-loading="resultLoading" stripe>
             <el-table-column type="index" label="#" width="56" />
             <el-table-column prop="name" label="姓名" min-width="120" />
@@ -120,6 +154,7 @@
 </template>
 
 <script setup>
+// ===== 导入依赖 =====
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -128,14 +163,19 @@ import api from '../api'
 const router = useRouter()
 const activeTab = ref('vote')
 const sortMode = ref(false)
-const userInfo = ref({})
-const candidateTeachers = ref([])
-const selectedTeacherIds = ref([])
-const resultTeachers = ref([])
-const top3 = ref([])
-const submitting = ref(false)
+
+// ===== 人三讲解：投票相关状态 =====
+const userInfo = ref({})              // 用户信息（从 localStorage 读取）
+const candidateTeachers = ref([])     // 候选人列表（用于展示投票卡片）
+const selectedTeacherIds = ref([])    // 当前勾选的教师 ID 数组（v-model）
+const submitting = ref(false)         // 提交中状态
+
+// ===== 人三讲解：结果相关状态 =====
+const resultTeachers = ref([])  // 候选人得票数据
+const top3 = ref([])            // 得票前三名
 const resultLoading = ref(false)
 
+// 人三讲解：加载候选人列表 — 调用 getResults 获取 is_candidate=1 的教师
 const loadCandidates = async () => {
   try {
     const res = await api.getResults(false)
@@ -143,46 +183,60 @@ const loadCandidates = async () => {
   } catch { /* 拦截器已处理 */ }
 }
 
+// 人三讲解：勾选变化处理 — 超过 3 项时弹出警告
+// 注意：这里只警告，不阻止勾选。真正作废逻辑在后端提交时判断
 const handleCheckboxChange = () => {
   if (selectedTeacherIds.value.length > 3) {
     ElMessage.error('已超过 3 项！提交后选票将作废！')
   }
 }
 
+// 人三讲解：提交投票 — 核心业务流程
+// 1. 弹窗二次确认
+// 2. 调用 submitVote 接口
+// 3. 根据返回结果更新本地状态（已投票 or 已作废）
+// 4. 同步更新 localStorage 中的用户信息
 const submitVote = () => {
   ElMessageBox.confirm('投票提交后不可更改，确定提交吗？', '提示', { type: 'info' }).then(async () => {
     submitting.value = true
     try {
       const res = await api.submitVote(userInfo.value.id, selectedTeacherIds.value)
       ElMessage.success(res.message)
+      // 人三讲解：根据投票数更新本地状态 — 超 3 票标为作废(2)，否则标为已投票(1)
       userInfo.value.vote_status = selectedTeacherIds.value.length > 3 ? 2 : 1
+      // 人三讲解：同步更新 localStorage — 保证路由守卫和页面状态一致
       localStorage.setItem('user', JSON.stringify(userInfo.value))
     } catch { /* 拦截器已处理 */ }
     finally { submitting.value = false }
   }).catch(() => {})
 }
 
+// 人三讲解：加载投票结果 — isSort 控制排序方式
 const loadResults = async (isSort = false) => {
   sortMode.value = isSort
   resultLoading.value = true
   try {
     const res = await api.getResults(isSort)
     resultTeachers.value = res.data
+    // 人三讲解：前端排序取前三名 — 用展开运算符避免修改原数组
     const sorted = [...res.data].sort((a, b) => b.vote_count - a.vote_count)
     top3.value = sorted.slice(0, 3)
   } catch { /* 拦截器已处理 */ }
   finally { resultLoading.value = false }
 }
 
+// 人三讲解：Tab 切换 — 切换到公示 tab 时自动加载结果
 const handleTabChange = (tabName) => {
   if (tabName === 'result') loadResults(false)
 }
 
+// 人三讲解：退出登录
 const handleLogout = () => {
   localStorage.clear()
   router.push('/')
 }
 
+// 人三讲解：onMounted — 页面加载时读取用户信息并加载候选人列表
 onMounted(() => {
   userInfo.value = JSON.parse(localStorage.getItem('user'))
   loadCandidates()
@@ -198,7 +252,7 @@ onMounted(() => {
     var(--c-bg);
 }
 
-/* 投票横幅额外样式 */
+/* 人三讲解：投票横幅光泽动画 */
 .vote-banner {
   position: relative;
   overflow: hidden;
@@ -216,7 +270,7 @@ onMounted(() => {
   pointer-events: none;
 }
 
-/* 教师卡片额外 */
+/* 人三讲解：教师卡片悬停效果 — ::before 渐变遮罩 */
 .vote-teacher-card {
   position: relative;
   overflow: hidden;
@@ -242,7 +296,7 @@ onMounted(() => {
   z-index: 1;
 }
 
-/* 提交区域 */
+/* 人三讲解：提交区域顶部分割线 */
 .submit-area {
   position: relative;
 }
@@ -257,7 +311,6 @@ onMounted(() => {
   background: linear-gradient(90deg, transparent, var(--c-primary-glow), transparent);
 }
 
-/* 状态卡片额外 */
 .state-card {
   position: relative;
   overflow: hidden;
